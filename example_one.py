@@ -5,9 +5,12 @@ import requests
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-import pytz
 
-from helpers.helpers import get_week_range
+
+from helpers.helpers import (
+    filtrar_df_por_fecha,
+    calcular_tecnicos_activos_periodo,
+)
 
 
 # API_URL = "http://localhost:8000/api"
@@ -38,23 +41,26 @@ def get_updated_tasks():
         return []
 
 
-# Calcula los técnicos activos basado en tareas completadas o bien devueltas durante el período filtrado.
-def calcular_tecnicos_activos_periodo(df):
-    # Convertir a datetime si no lo es
-    if not pd.api.types.is_datetime64_any_dtype(df["fecha"]):
-        df["fecha"] = pd.to_datetime(df["fecha"])
+def calcular_dias_laborables_mes(year, month):
+    """
+    Calcula los días laborables (lunes a sábado) para un mes específico
+    """
+    primer_dia = pd.Timestamp(year=year, month=month, day=1)
+    if month == 12:
+        siguiente_mes = pd.Timestamp(year=year + 1, month=1, day=1)
+    else:
+        siguiente_mes = pd.Timestamp(year=year, month=month + 1, day=1)
+    ultimo_dia = siguiente_mes - pd.Timedelta(days=1)
 
-    # Asegurarse de que las fechas en el DataFrame tengan zona horaria
-    if df["fecha"].dt.tz is None:
-        df["fecha"] = df["fecha"].dt.tz_localize(pytz.UTC)
+    dias_laborables = 0
+    fecha_actual = primer_dia
 
-    # Filtrar técnicos que han tenido actividad en el período
-    tecnicos_activos = df[
-        (df["status"] == "Completada")
-        | ((df["status"] == "Devuelta") & (df["returned_well"] == 1))
-    ]["staff"].unique()
+    while fecha_actual <= ultimo_dia:
+        if fecha_actual.dayofweek < 6:  # 0-5 son lunes a sábado
+            dias_laborables += 1
+        fecha_actual += pd.Timedelta(days=1)
 
-    return tecnicos_activos
+    return dias_laborables
 
 
 def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
@@ -65,6 +71,13 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
     dias_laborables = calcular_dias_laborables(fecha_inicio, fecha_fin)
     META_TOTAL = TOTAL_CUADRILLAS_ACTIVAS * META_DIARIA_TECNICO * dias_laborables
 
+    # Calcular días laborables totales del mes (lunes a sábado)
+    dias_laborables_mes = calcular_dias_laborables_mes(
+        fecha_inicio.year, fecha_inicio.month
+    )
+    META_TOTAL_MES = (
+        TOTAL_CUADRILLAS_ACTIVAS * META_DIARIA_TECNICO * dias_laborables_mes
+    )
     # Verificar si hay datos
     if df.empty:
         return (
@@ -85,6 +98,99 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
         (df["status"] == "Completada")
         | ((df["status"] == "Devuelta") & (df["returned_well"] == 1))
     ]
+
+    # Crear gráfico de proyección
+    df_valido["fecha"] = pd.to_datetime(df_valido["fecha"])
+    df_diario = (
+        df_valido.groupby(df_valido["fecha"].dt.date)["total"].sum().reset_index()
+    )
+    df_diario["acumulado"] = df_diario["total"].cumsum()
+
+    # Calcular días transcurridos y total actual
+    dias_transcurridos = len(df_diario)
+    total_actual = df_diario["acumulado"].iloc[-1] if not df_diario.empty else 0
+
+    # Crear gráfico de proyección
+    fig_projection = go.Figure()
+
+    # Línea de meta mensual con etiqueta
+    x_mes = [fecha_inicio, fecha_fin]
+    y_mes = [0, META_TOTAL_MES]
+    fig_projection.add_trace(
+        go.Scatter(
+            x=x_mes,
+            y=y_mes,
+            name=f"Meta Mensual ({dias_laborables_mes} días)",
+            line=dict(color="red", dash="dash"),
+            text=["", f"${META_TOTAL_MES:,.0f}"],
+            mode="lines+text",
+            textposition="top right",
+            textfont=dict(color="red"),
+        )
+    )
+
+    # Línea de meta del período seleccionado
+    # Línea de meta del período con etiqueta
+    fig_projection.add_trace(
+        go.Scatter(
+            x=x_mes,
+            y=[0, META_TOTAL],
+            name=f"Meta Período ({dias_laborables} días)",
+            line=dict(color="gray", dash="dash"),
+            text=["", f"${META_TOTAL:,.0f}"],
+            mode="lines+text",
+            textposition="bottom right",
+            textfont=dict(color="gray"),
+        )
+    )
+
+    # Línea de progreso actual
+    if not df_diario.empty:
+        # Crear lista de textos vacíos excepto el último valor
+        text_labels = [""] * (len(df_diario) - 1) + [f"${total_actual:,.0f}"]
+
+        fig_projection.add_trace(
+            go.Scatter(
+                x=df_diario["fecha"],
+                y=df_diario["acumulado"],
+                name=f"Progreso Actual ({dias_transcurridos} días)",
+                line=dict(color="blue"),
+                text=text_labels,
+                mode="lines+text",
+                textposition="middle right",
+                textfont=dict(color="blue"),
+            )
+        )
+
+    fig_projection.update_layout(
+        title=f"Progreso vs. Metas ({dias_laborables_mes} días laborables en el mes)",
+        xaxis_title="Fecha",
+        yaxis_title="Monto ($)",
+        showlegend=True,
+    )
+
+    # TODO:: Calcular métricas de proyección mensual
+    # Calcular métricas de proyección mensual
+    promedio_diario_actual = (
+        total_actual / dias_transcurridos if dias_transcurridos > 0 else 0
+    )
+    dias_restantes_mes = dias_laborables_mes - dias_transcurridos
+    proyeccion_final = total_actual + (promedio_diario_actual * dias_restantes_mes)
+
+    mensaje_proyeccion = f"""
+📅 Análisis de Proyección Mensual ({dias_laborables_mes} días laborables)
+
+Progreso:
+• Monto actual: ${total_actual:,.2f}
+• Porcentaje completado: {(total_actual/META_TOTAL_MES*100):.1f}% de la meta mensual
+• Meta mensual total: ${META_TOTAL_MES:,.2f}
+• Días laborados: {dias_transcurridos} de {dias_laborables_mes}
+• Promedio diario actual: ${promedio_diario_actual:,.2f}
+
+🎯 Proyección:
+• Al ritmo actual se alcanzaría: ${proyeccion_final:,.2f} al final del mes
+• Meta diaria necesaria para objetivo mensual: ${(META_TOTAL_MES - total_actual) / dias_restantes_mes if dias_restantes_mes > 0 else 0:,.2f}
+"""
 
     tecnicos_activos = df_valido["staff"].unique()
 
@@ -135,11 +241,8 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
 
     # Crear gráfico de pie de contribución por técnico
     datos_pie = []
-    # nombres_tecnicos = []
 
     for metrica in metricas_tecnicos:
-        # nombre_tecnico = metrica["tecnico"]
-        # nombres_tecnicos.append(nombre_tecnico)
         datos_pie.append(
             f"{metrica['tecnico']}<br>"
             + f"Alcanzado: ${metrica['ingresos']:,.2f}<br>"
@@ -148,7 +251,6 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
             + f"Meta: ${metrica['meta_individual']:,.2f}<br>"
             + f"Porcentaje: {metrica['porcentaje_meta_individual']}%"
         )
-
     # TODO:: Crear gráfico de barras para comparación de meta
     fig_pie = go.Figure(
         data=[
@@ -213,6 +315,7 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
     return (
         fig_pie,
         fig_barras,
+        fig_projection,
         {
             "tecnicos_activos": len(tecnicos_activos),
             "meta_total": META_TOTAL,
@@ -220,6 +323,8 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
             "porcentaje_cumplimiento": porcentaje_cumplimiento,
             "dias_laborables": dias_laborables,
             "tecnicos_inactivos": tecnicos_inactivos,
+            "mensaje_proyeccion": mensaje_proyeccion,
+            "meta_total_mes": META_TOTAL_MES,
         },
     )
 
@@ -230,7 +335,6 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
 def get_semanas_del_mes(year, month):
 
     primer_dia = pd.Timestamp(year=year, month=month, day=1)
-
     # Si es el mes actual, usar el día actual como límite
     if month == pd.Timestamp.now().month:
         ultimo_dia = pd.Timestamp.now()
@@ -285,10 +389,9 @@ def calcular_dias_laborables(fecha_inicio, fecha_fin):
     return dias_laborables
 
 
+# TODO:: Crea los filtros de fecha para el dashboard
 def crear_filtros_fecha():
-    """
-    Crea los filtros de fecha para el dashboard
-    """
+
     st.write("Filtros de Fecha")
 
     # Obtener año y mes actual
@@ -341,7 +444,7 @@ def crear_filtros_fecha():
         )
 
     # Crear lista de días disponibles
-    primer_dia = pd.Timestamp(year=hoy.year, month=mes_seleccionado, day=1)
+    # primer_dia = pd.Timestamp(year=hoy.year, month=mes_seleccionado, day=1)
     if mes_seleccionado == hoy.month:
         ultimo_dia = hoy.day
     else:
@@ -395,43 +498,6 @@ def crear_filtros_fecha():
     return fecha_inicio, fecha_fin
 
 
-def filtrar_df_por_fecha(df, fecha_inicio, fecha_fin):
-    """
-    Filtra el DataFrame por rango de fechas, considerando el día completo.
-
-    Args:
-        df: DataFrame con los datos
-        fecha_inicio: Timestamp con la fecha inicial
-        fecha_fin: Timestamp con la fecha final
-    """
-    if fecha_inicio is None or fecha_fin is None:
-        return df
-
-    # Asegurarse de que las fechas del DataFrame tengan zona horaria
-    if df["fecha"].dt.tz is None:
-        df["fecha"] = df["fecha"].dt.tz_localize(pytz.UTC)
-
-    # Agregar zona horaria a las fechas de filtro si no la tienen
-    if fecha_inicio.tz is None:
-        fecha_inicio = fecha_inicio.tz_localize(pytz.UTC)
-    if fecha_fin.tz is None:
-        fecha_fin = fecha_fin.tz_localize(pytz.UTC)
-
-    # Si fecha_inicio y fecha_fin son el mismo día, ajustar fecha_fin al final del día
-    if fecha_inicio.date() == fecha_fin.date():
-        fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-    # Filtrar el DataFrame
-    df_filtrado = df[
-        (df["fecha"] >= fecha_inicio)
-        & (
-            df["fecha"] <= fecha_fin
-        )  # Cambiado a <= para incluir el último segundo del día
-    ]
-
-    return df_filtrado
-
-
 # TODO:: Dashboard de Productividad Técnicos
 def main():
     # st.title("Dashboard de Productividad Técnicos")
@@ -442,7 +508,6 @@ def main():
 
     df = pd.DataFrame(tasks)
 
-    # df["fecha"] = pd.to_datetime(df["datedelivery_time"])
     df["fecha"] = pd.NaT
 
     # Asignar "completed_time" si el estado es "Completada"
@@ -480,7 +545,6 @@ def main():
     with col8:
         estados = ["Todos", "Completadas", "Bien Devueltas"]
         selected_estado = st.selectbox("Filtrar por Estado:", estados)
-    # Filtros en la parte superior
 
     # TODO:: -------------------------------------------- GRÁFICO DE CUMPLIMIENTO DE METAS ------------------------------
     st.write("---")
@@ -500,9 +564,15 @@ def main():
         )
 
     # Crear los gráficos con datos filtrados
-    fig_pie, fig_barras, metricas = crear_graficos_cumplimiento(
+    fig_pie, fig_barras, fig_projection, metricas = crear_graficos_cumplimiento(
         df_filtrado, fecha_inicio, fecha_fin
     )
+    # Mostrar mensaje de proyección
+    st.write("### Análisis de Proyección")
+    st.write(metricas["mensaje_proyeccion"])
+
+    # Mostrar gráfico de proyección
+    st.plotly_chart(fig_projection, use_container_width=True)
 
     # Mostrar métricas
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -540,9 +610,6 @@ def main():
             st.plotly_chart(fig_pie, use_container_width=True)
             if metricas["tecnicos_inactivos"]:
                 st.write("##### Técnicos sin actividad en el período:")
-                # if metricas["tecnicos_inactivos"]:
-                # st.write("##### Técnicos sin actividad en el período")
-                # Crear DataFrame con una sola columna
                 df_inactivos = pd.DataFrame(
                     metricas["tecnicos_inactivos"], columns=["Nombre"]
                 )
@@ -551,9 +618,7 @@ def main():
                     df_inactivos,
                     hide_index=True,
                     use_container_width=True,
-                    height=(
-                        len(metricas["tecnicos_inactivos"]) * 35 + 38
-                    ),  # Ajuste de altura dinámico
+                    height=(len(metricas["tecnicos_inactivos"]) * 35 + 38),
                 )
     else:
         st.warning("No se encontraron datos para el período seleccionado.")
