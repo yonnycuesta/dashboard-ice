@@ -165,7 +165,7 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
 
     fig_pie.update_layout(
         title={
-            "text": f"Contribución por Técnico ({dias_laborables} días laborables)",
+            "text": f"Contribución por Cuadrilla ({dias_laborables} días laborables)",
             "y": 0.95,
             "x": 0.5,
             "xanchor": "center",
@@ -364,22 +364,12 @@ def crear_filtros_fecha():
             disabled=semana_seleccionada != "Todas las semanas",
         )
 
-    # with col2:
-    #     # Input para cantidad de técnicos
-    #     total_tecnicos = st.number_input(
-    #         "Cantidad de cuadrillas:", min_value=1, max_value=50, value=9
-    #     )  # Valor por defecto: 9
-
     # Crear las fechas de filtro
     year = hoy.year
     fecha_inicio = None
     fecha_fin = None
 
     if dia_seleccionado != "Todos los días":
-        # Filtro por día específico
-        # dia = int(dia_seleccionado)
-        # fecha_inicio = pd.Timestamp(year=year, month=mes_seleccionado, day=dia)
-        # fecha_fin = fecha_inicio
         dia = int(dia_seleccionado)
         fecha_inicio = pd.Timestamp(
             year=year, month=mes_seleccionado, day=dia, hour=0, minute=0, second=0
@@ -472,113 +462,25 @@ def main():
 
     df["returned_well"] = pd.to_numeric(df["returned_well"], errors="coerce").fillna(0)
 
-    years = sorted(df["fecha"].dt.year.unique().tolist(), reverse=True)
-    selected_year = st.selectbox("Seleccionar Año:", years)
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        years = sorted(df["fecha"].dt.year.unique().tolist(), reverse=True)
+        selected_year = st.selectbox("Seleccionar Año:", years)
 
-    df = df[df["fecha"].dt.year == selected_year]
+        df = df[df["fecha"].dt.year == selected_year]
 
-    # Filtros en la parte superior
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    with col6:
         sites = ["Todos"] + sorted(df["site"].unique().tolist())
         selected_site = st.selectbox("Filtrar por Sitio:", sites)
 
-    with col2:
+    with col7:
         events = ["Todos"] + sorted(df["event"].unique().tolist())
         selected_event = st.selectbox("Filtrar por Evento:", events)
 
-    with col3:
+    with col8:
         estados = ["Todos", "Completadas", "Bien Devueltas"]
         selected_estado = st.selectbox("Filtrar por Estado:", estados)
-
-    # Aplicar filtros
-    filtered_df = df.copy()
-    if selected_site != "Todos":
-        filtered_df = filtered_df[filtered_df["site"] == selected_site]
-    if selected_event != "Todos":
-        filtered_df = filtered_df[filtered_df["event"] == selected_event]
-    if selected_estado != "Todos":
-        if selected_estado == "Completadas":
-            filtered_df = filtered_df[filtered_df["status"] == "Completada"]
-        elif selected_estado == "Bien Devueltas":
-            filtered_df = filtered_df[
-                (filtered_df["status"] == "Devuelta")
-                & (filtered_df["returned_well"] == 1)
-            ]
-
-    # DataFrame para cálculos (solo Completadas y Bien Devueltas)
-    # calculo_df = filtered_df[
-    #     (filtered_df["status"] == "Completada")
-    #     | ((filtered_df["status"] == "Devuelta") & (filtered_df["returned_well"] == 1))
-    # ]
-
-    # Métricas principales
-    # col1, col2, col3, col4 = st.columns(4)
-
-    # with col1:
-    #     total_pedidos = len(calculo_df)
-    #     num_tecnicos = calculo_df["staff"].nunique()
-    #     productividad = total_pedidos / num_tecnicos if num_tecnicos > 0 else 0
-    #     st.metric("Productividad", f"{productividad:.1f}")
-
-    # with col2:
-    #     ingresos = calculo_df["total"].sum()
-    #     st.metric("Ingresos Totales", f"${ingresos:,.2f}")
-
-    # with col3:
-    #     st.metric("Cuadrillas", num_tecnicos)
-
-    # with col4:
-    #     ingreso_por_tecnico = ingresos / num_tecnicos if num_tecnicos > 0 else 0
-    #     st.metric("Ingreso por Cuadrilla", f"${ingreso_por_tecnico:,.2f}")
-
-    # # Filtros de tiempo
-    # st.write("---")
-    # tiempo_options = ["Diario", "Última Semana", "Mes Actual", "Mes Anterior"]
-    # tiempo_filter = st.radio("Filtrar por período:", tiempo_options, horizontal=True)
-
-    # Aplicar filtro de tiempo
-    # now = datetime.now()
-    # if tiempo_filter == "Diario":
-    #     calculo_df = calculo_df[calculo_df["fecha"].dt.date == now.date()]
-    # elif tiempo_filter == "Última Semana":
-    #     week_ago = now - timedelta(days=7)
-    #     calculo_df = calculo_df[calculo_df["fecha"] >= week_ago]
-    #     start_date, end_date = get_week_range(week_ago)
-    #     st.info(f"Período: {start_date} al {end_date}")
-    # elif tiempo_filter == "Mes Actual":
-    #     calculo_df = calculo_df[calculo_df["fecha"].dt.month == now.month]
-    # elif tiempo_filter == "Mes Anterior":
-    #     calculo_df = calculo_df[
-    #         calculo_df["fecha"].dt.month == (now - timedelta(days=30)).month
-    #     ]
-
-    # Gráfico de ingresos por Cuadrilla
-    # if len(calculo_df) > 0:
-    #     ingresos_por_tecnico = calculo_df.groupby("staff")["total"].sum().reset_index()
-    #     ingresos_por_tecnico.columns = ["Cuadrilla", "Ingresos"]
-
-    #     fig = go.Figure(
-    #         go.Bar(
-    #             x=ingresos_por_tecnico["Ingresos"],
-    #             y=ingresos_por_tecnico["Cuadrilla"],
-    #             orientation="h",
-    #             text=[f"${x:,.2f}" for x in ingresos_por_tecnico["Ingresos"]],
-    #             textposition="auto",
-    #         )
-    #     )
-
-    #     fig.update_layout(
-    #         title="Ingresos por Cuadrilla",
-    #         xaxis_title="Ingresos ($)",
-    #         yaxis_title="Cuadrilla",
-    #         height=400 + (len(ingresos_por_tecnico) * 30),
-    #         margin=dict(l=200),
-    #     )
-
-    #     st.plotly_chart(fig, use_container_width=True)
-    # else:
-    #     st.warning("No hay datos para mostrar con los filtros seleccionados")
+    # Filtros en la parte superior
 
     # TODO:: -------------------------------------------- GRÁFICO DE CUMPLIMIENTO DE METAS ------------------------------
     st.write("---")
@@ -586,6 +488,8 @@ def main():
 
     # Agregar filtros de fecha
     fecha_inicio, fecha_fin = crear_filtros_fecha()
+    filtered_df = df.copy()
+
     # Filtrar DataFrame
     df_filtrado = filtrar_df_por_fecha(filtered_df, fecha_inicio, fecha_fin)
 
@@ -602,6 +506,20 @@ def main():
 
     # Mostrar métricas
     col1, col2, col3, col4, col5 = st.columns(5)
+
+    if selected_site != "Todos":
+        filtered_df = filtered_df[filtered_df["site"] == selected_site]
+    if selected_event != "Todos":
+        filtered_df = filtered_df[filtered_df["event"] == selected_event]
+    if selected_estado != "Todos":
+        if selected_estado == "Completadas":
+            filtered_df = filtered_df[filtered_df["status"] == "Completada"]
+        elif selected_estado == "Bien Devueltas":
+            filtered_df = filtered_df[
+                (filtered_df["status"] == "Devuelta")
+                & (filtered_df["returned_well"] == 1)
+            ]
+
     with col1:
         st.metric("Meta del Período", f"${metricas['meta_total']:,.2f}")
     with col2:
