@@ -1,0 +1,92 @@
+   # datos_pie.append(
+        #     f"{metrica['tecnico']}<br>"
+        #     + f"${metrica['ingresos']:,.2f}<br>"
+        #     + f"{metrica['num_tareas']} tareas<br>"
+        #     + f"({metrica['porcentaje_meta']}% de meta)<br>"
+        #     + f"({metrica['porcentaje_meta_individual']}% meta individual)"
+        # )
+
+    # fig_pie = go.Figure(
+    #     data=[
+    #         go.Pie(
+    #             labels=datos_pie,
+    #             values=[m["ingresos"] for m in metricas_tecnicos],
+    #             hole=0.3,
+    #             textinfo="label",
+    #             hovertemplate="<b>%{label}</b><extra></extra>",
+    #         )
+    #     ]
+    # )
+
+    # fig_pie.update_layout(
+    #     title={
+    #         "text": f"Contribución por Técnico ({dias_laborables} días laborables)",
+    #         "y": 0.95,
+    #         "x": 0.5,
+    #         "xanchor": "center",
+    #         "yanchor": "top",
+    #     },
+    #     showlegend=True,
+    #     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+    # )
+    # # TODO:: Crear gráfico de barras para comparación de meta
+    # total_alcanzado = sum(m["ingresos"] for m in metricas_tecnicos)
+    # porcentaje_cumplimiento = (total_alcanzado / META_TOTAL * 100).round(1)
+
+    # fig_barras = go.Figure()
+
+    # fig_barras.add_trace(
+    #     go.Bar(
+    #         x=["Meta"],
+    #         y=[META_TOTAL],
+    #         name="Meta del Período",
+    #         marker_color="lightgray",
+    #         text=[f"${META_TOTAL:,.2f}"],
+    #         textposition="auto",
+    #     )
+    # )
+
+    # fig_barras.add_trace(
+    #     go.Bar(
+    #         x=["Alcanzado"],
+    #         y=[total_alcanzado],
+    #         name=f"Alcanzado ({porcentaje_cumplimiento}%)",
+    #         marker_color="rgb(0, 123, 255)",
+    #         text=[f"${total_alcanzado:,.2f}"],
+    #         textposition="auto",
+    #     )
+    # )
+
+    # fig_barras.update_layout(
+    #     title=f"Cumplimiento de Meta del Período ({dias_laborables} días laborables)",
+    #     barmode="group",
+    #     yaxis_title="Ingresos ($)",
+    #     showlegend=True,
+    # )
+
+    # return (
+    #     fig_pie,
+    #     fig_barras,
+    #     {
+    #         "tecnicos_activos": len(tecnicos_activos),
+    #         "meta_total": META_TOTAL,
+    #         "total_alcanzado": total_alcanzado,
+    #         "porcentaje_cumplimiento": porcentaje_cumplimiento,
+    #         "dias_laborables": dias_laborables,
+    #         "tecnicos_inactivos": tecnicos_inactivos,
+    #     },
+    # )
+
+
+
+       # metricas_tecnicos.append(
+        #     {
+        #         "tecnico": tecnico,
+        #         "ingresos": ingresos_tecnico,
+        #         "num_tareas": len(tareas_tecnico),
+        #         "porcentaje_meta": (ingresos_tecnico / META_TOTAL * 100).round(1),
+        #         "porcentaje_meta_individual": (
+        #             ingresos_tecnico / META_DIARIA_TECNICO * 100
+        #         ).round(1),
+        #     }
+        # )

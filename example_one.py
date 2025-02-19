@@ -14,7 +14,6 @@ from helpers.helpers import get_week_range
 API_URL = "https://ice-productividad-production.up.railway.app/api"
 
 
-
 current_staffs = (
     "ESTEBAN CALVO ELIZONDO",
     "GERARDO MORA GRANADOS",
@@ -114,15 +113,23 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
     for tecnico in tecnicos_activos:
         tareas_tecnico = df_valido[df_valido["staff"] == tecnico]
         ingresos_tecnico = tareas_tecnico["total"].sum()
+        # Calcular días trabajados (días únicos con tareas completadas o bien devueltas)
+        dias_trabajados = tareas_tecnico["fecha"].dt.date.nunique()
+        meta_individual = META_DIARIA_TECNICO * dias_trabajados
+
         metricas_tecnicos.append(
             {
                 "tecnico": tecnico,
                 "ingresos": ingresos_tecnico,
                 "num_tareas": len(tareas_tecnico),
+                "dias_trabajados": dias_trabajados,
+                "meta_individual": meta_individual,
                 "porcentaje_meta": (ingresos_tecnico / META_TOTAL * 100).round(1),
                 "porcentaje_meta_individual": (
-                    ingresos_tecnico / META_DIARIA_TECNICO * 100
-                ).round(1),
+                    (ingresos_tecnico / meta_individual * 100).round(1)
+                    if meta_individual > 0
+                    else 0
+                ),
             }
         )
 
@@ -133,10 +140,13 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
         datos_pie.append(
             f"{metrica['tecnico']}<br>"
             + f"${metrica['ingresos']:,.2f}<br>"
-            # + f"{metrica['num_tareas']} tareas<br>"
-            # + f"({metrica['porcentaje_meta']}% de meta)<br>"
-            + f"({metrica['porcentaje_meta_individual']}% de meta)"
+            + f"{metrica['num_tareas']} tareas<br>"
+            + f"{metrica['dias_trabajados']} días trabajados<br>"
+            + f"Meta individual: ${metrica['meta_individual']:,.2f}<br>"
+            + f"({metrica['porcentaje_meta_individual']}% de meta individual)"
         )
+
+    # TODO:: Crear gráfico de barras para comparación de meta
 
     fig_pie = go.Figure(
         data=[
@@ -150,45 +160,6 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
         ]
     )
 
-    # datos_pie = []
-    # for metrica in metricas_tecnicos:
-    #     datos_pie.append(
-    #         f"{metrica['tecnico']}<br>"
-    #         + f"${metrica['ingresos']:,.2f}<br>"
-    #         + f"{metrica['num_tareas']} tareas<br>"
-    #         + f"({metrica['porcentaje_meta']}% de meta)<br>"
-    #         + f"({metrica['porcentaje_meta_individual']}% de meta individual)"
-    #     )
-
-    # fig_pie = go.Figure(
-    #     data=[
-    #         go.Pie(
-    #             labels=[
-    #                 m["tecnico"] for m in metricas_tecnicos
-    #             ],  # Solo el nombre del técnico
-    #             values=[m["ingresos"] for m in metricas_tecnicos],
-    #             hole=0.3,
-    #             textinfo="label",
-    #             hovertemplate=(
-    #                 "<b>%{label}</b><br>"
-    #                 "Ingresos: $%{value:,.2f}<br>"
-    #                 "Tareas: %{customdata[0]}<br>"
-    #                 "% de Meta: %{customdata[1]:.1f}%<br>"
-    #                 "% de Meta Individual: %{customdata[2]:.1f}%"
-    #                 "<extra></extra>"
-    #             ),
-    #             customdata=[
-    #                 [
-    #                     m["num_tareas"],
-    #                     float(m["porcentaje_meta"]),
-    #                     float(m["porcentaje_meta_individual"]),
-    #                 ]
-    #                 for m in metricas_tecnicos
-    #             ],
-    #         )
-    #     ]
-    # )
-
     fig_pie.update_layout(
         title={
             "text": f"Contribución por Técnico ({dias_laborables} días laborables)",
@@ -200,19 +171,7 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
     )
-    # fig_pie.update_layout(
-    #     title={
-    #         "text": f"Contribución por Cuadrilla ({dias_laborables} días laborables)",
-    #         "y": 0.95,
-    #         "x": 0.5,
-    #         "xanchor": "center",
-    #         "yanchor": "top",
-    #     },
-    #     showlegend=True,
-    #     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-    # )
 
-    # TODO:: Crear gráfico de barras para comparación de meta
     total_alcanzado = sum(m["ingresos"] for m in metricas_tecnicos)
     porcentaje_cumplimiento = (total_alcanzado / META_TOTAL * 100).round(1)
 
