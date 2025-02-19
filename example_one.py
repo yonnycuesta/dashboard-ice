@@ -147,14 +147,13 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
         )
 
     # TODO:: Crear gráfico de barras para comparación de meta
-
     fig_pie = go.Figure(
         data=[
             go.Pie(
                 labels=datos_pie,
                 values=[m["ingresos"] for m in metricas_tecnicos],
                 hole=0.3,
-                textinfo="label",
+                textinfo="none",
                 hovertemplate="<b>%{label}</b><extra></extra>",
             )
         ]
