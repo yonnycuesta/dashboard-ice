@@ -169,7 +169,7 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
             "yanchor": "top",
         },
         showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.9, xanchor="center", x=0.5),
     )
 
     total_alcanzado = sum(m["ingresos"] for m in metricas_tecnicos)
@@ -503,78 +503,78 @@ def main():
             ]
 
     # DataFrame para cálculos (solo Completadas y Bien Devueltas)
-    calculo_df = filtered_df[
-        (filtered_df["status"] == "Completada")
-        | ((filtered_df["status"] == "Devuelta") & (filtered_df["returned_well"] == 1))
-    ]
+    # calculo_df = filtered_df[
+    #     (filtered_df["status"] == "Completada")
+    #     | ((filtered_df["status"] == "Devuelta") & (filtered_df["returned_well"] == 1))
+    # ]
 
     # Métricas principales
-    col1, col2, col3, col4 = st.columns(4)
+    # col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        total_pedidos = len(calculo_df)
-        num_tecnicos = calculo_df["staff"].nunique()
-        productividad = total_pedidos / num_tecnicos if num_tecnicos > 0 else 0
-        st.metric("Productividad", f"{productividad:.1f}")
+    # with col1:
+    #     total_pedidos = len(calculo_df)
+    #     num_tecnicos = calculo_df["staff"].nunique()
+    #     productividad = total_pedidos / num_tecnicos if num_tecnicos > 0 else 0
+    #     st.metric("Productividad", f"{productividad:.1f}")
 
-    with col2:
-        ingresos = calculo_df["total"].sum()
-        st.metric("Ingresos Totales", f"${ingresos:,.2f}")
+    # with col2:
+    #     ingresos = calculo_df["total"].sum()
+    #     st.metric("Ingresos Totales", f"${ingresos:,.2f}")
 
-    with col3:
-        st.metric("Cuadrillas", num_tecnicos)
+    # with col3:
+    #     st.metric("Cuadrillas", num_tecnicos)
 
-    with col4:
-        ingreso_por_tecnico = ingresos / num_tecnicos if num_tecnicos > 0 else 0
-        st.metric("Ingreso por Cuadrilla", f"${ingreso_por_tecnico:,.2f}")
+    # with col4:
+    #     ingreso_por_tecnico = ingresos / num_tecnicos if num_tecnicos > 0 else 0
+    #     st.metric("Ingreso por Cuadrilla", f"${ingreso_por_tecnico:,.2f}")
 
-    # Filtros de tiempo
-    st.write("---")
-    tiempo_options = ["Diario", "Última Semana", "Mes Actual", "Mes Anterior"]
-    tiempo_filter = st.radio("Filtrar por período:", tiempo_options, horizontal=True)
+    # # Filtros de tiempo
+    # st.write("---")
+    # tiempo_options = ["Diario", "Última Semana", "Mes Actual", "Mes Anterior"]
+    # tiempo_filter = st.radio("Filtrar por período:", tiempo_options, horizontal=True)
 
     # Aplicar filtro de tiempo
-    now = datetime.now()
-    if tiempo_filter == "Diario":
-        calculo_df = calculo_df[calculo_df["fecha"].dt.date == now.date()]
-    elif tiempo_filter == "Última Semana":
-        week_ago = now - timedelta(days=7)
-        calculo_df = calculo_df[calculo_df["fecha"] >= week_ago]
-        start_date, end_date = get_week_range(week_ago)
-        st.info(f"Período: {start_date} al {end_date}")
-    elif tiempo_filter == "Mes Actual":
-        calculo_df = calculo_df[calculo_df["fecha"].dt.month == now.month]
-    elif tiempo_filter == "Mes Anterior":
-        calculo_df = calculo_df[
-            calculo_df["fecha"].dt.month == (now - timedelta(days=30)).month
-        ]
+    # now = datetime.now()
+    # if tiempo_filter == "Diario":
+    #     calculo_df = calculo_df[calculo_df["fecha"].dt.date == now.date()]
+    # elif tiempo_filter == "Última Semana":
+    #     week_ago = now - timedelta(days=7)
+    #     calculo_df = calculo_df[calculo_df["fecha"] >= week_ago]
+    #     start_date, end_date = get_week_range(week_ago)
+    #     st.info(f"Período: {start_date} al {end_date}")
+    # elif tiempo_filter == "Mes Actual":
+    #     calculo_df = calculo_df[calculo_df["fecha"].dt.month == now.month]
+    # elif tiempo_filter == "Mes Anterior":
+    #     calculo_df = calculo_df[
+    #         calculo_df["fecha"].dt.month == (now - timedelta(days=30)).month
+    #     ]
 
     # Gráfico de ingresos por Cuadrilla
-    if len(calculo_df) > 0:
-        ingresos_por_tecnico = calculo_df.groupby("staff")["total"].sum().reset_index()
-        ingresos_por_tecnico.columns = ["Cuadrilla", "Ingresos"]
+    # if len(calculo_df) > 0:
+    #     ingresos_por_tecnico = calculo_df.groupby("staff")["total"].sum().reset_index()
+    #     ingresos_por_tecnico.columns = ["Cuadrilla", "Ingresos"]
 
-        fig = go.Figure(
-            go.Bar(
-                x=ingresos_por_tecnico["Ingresos"],
-                y=ingresos_por_tecnico["Cuadrilla"],
-                orientation="h",
-                text=[f"${x:,.2f}" for x in ingresos_por_tecnico["Ingresos"]],
-                textposition="auto",
-            )
-        )
+    #     fig = go.Figure(
+    #         go.Bar(
+    #             x=ingresos_por_tecnico["Ingresos"],
+    #             y=ingresos_por_tecnico["Cuadrilla"],
+    #             orientation="h",
+    #             text=[f"${x:,.2f}" for x in ingresos_por_tecnico["Ingresos"]],
+    #             textposition="auto",
+    #         )
+    #     )
 
-        fig.update_layout(
-            title="Ingresos por Cuadrilla",
-            xaxis_title="Ingresos ($)",
-            yaxis_title="Cuadrilla",
-            height=400 + (len(ingresos_por_tecnico) * 30),
-            margin=dict(l=200),
-        )
+    #     fig.update_layout(
+    #         title="Ingresos por Cuadrilla",
+    #         xaxis_title="Ingresos ($)",
+    #         yaxis_title="Cuadrilla",
+    #         height=400 + (len(ingresos_por_tecnico) * 30),
+    #         margin=dict(l=200),
+    #     )
 
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No hay datos para mostrar con los filtros seleccionados")
+    #     st.plotly_chart(fig, use_container_width=True)
+    # else:
+    #     st.warning("No hay datos para mostrar con los filtros seleccionados")
 
     # TODO:: -------------------------------------------- GRÁFICO DE CUMPLIMIENTO DE METAS ------------------------------
     st.write("---")
