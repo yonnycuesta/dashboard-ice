@@ -135,15 +135,18 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
 
     # Crear gráfico de pie de contribución por técnico
     datos_pie = []
+    # nombres_tecnicos = []
 
     for metrica in metricas_tecnicos:
+        # nombre_tecnico = metrica["tecnico"]
+        # nombres_tecnicos.append(nombre_tecnico)
         datos_pie.append(
             f"{metrica['tecnico']}<br>"
-            + f"${metrica['ingresos']:,.2f}<br>"
-            + f"{metrica['num_tareas']} tareas<br>"
-            + f"{metrica['dias_trabajados']} días trabajados<br>"
-            + f"Meta individual: ${metrica['meta_individual']:,.2f}<br>"
-            + f"({metrica['porcentaje_meta_individual']}% de meta individual)"
+            + f"Alcanzado: ${metrica['ingresos']:,.2f}<br>"
+            + f"Tareas: {metrica['num_tareas']}<br>"
+            + f"Días laborados: {metrica['dias_trabajados']}<br>"
+            + f"Meta: ${metrica['meta_individual']:,.2f}<br>"
+            + f"Porcentaje: {metrica['porcentaje_meta_individual']}%"
         )
 
     # TODO:: Crear gráfico de barras para comparación de meta
@@ -153,6 +156,7 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
                 labels=datos_pie,
                 values=[m["ingresos"] for m in metricas_tecnicos],
                 hole=0.3,
+                textposition="inside",
                 textinfo="none",
                 hovertemplate="<b>%{label}</b><extra></extra>",
             )
@@ -170,6 +174,7 @@ def crear_graficos_cumplimiento(df, fecha_inicio, fecha_fin):
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=-0.9, xanchor="center", x=0.5),
     )
+    # Crear el gráfico de torta
 
     total_alcanzado = sum(m["ingresos"] for m in metricas_tecnicos)
     porcentaje_cumplimiento = (total_alcanzado / META_TOTAL * 100).round(1)
