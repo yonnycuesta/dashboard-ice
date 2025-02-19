@@ -1,0 +1,12 @@
+
+python-dotenv
+typing-inspect
+requests
+waitress
+loguru
+python-multipart
+pandas
+openpyxl
+python-dateutil
+st-pages
+plotly
